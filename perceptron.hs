@@ -12,12 +12,25 @@ type Value = Float
 weightRange = (-100,100 :: Float)
 
 
+{-
+reference version
 perceptron :: ([Weight],Weight) -> [Value] -> Value
 perceptron (ws,bias) vs 
 	| length ws /= length vs = error "need to match lengths"
 	| otherwise = 1 / (1 + exp (-1 * net))
 		where net = (+bias) . sum $ zipWith (*) ws vs
+-}
 
+perceptron :: ([Weight],Weight) -> [Value] -> Value
+perceptron (ws,bias) vs = (1 /) . (1 +) . exp . negate . (bias +) $ sumZipWithFusion (*) ws vs
+
+
+sumZipWithFusion f xs ys = sumZipWithFusionAcc f xs ys 0
+
+sumZipWithFusionAcc f [] [] acc = acc
+sumZipWithFusionAcc f [] _ acc = error "differentLengths - arg 2 is too long"
+sumZipWithFusionAcc f _ [] acc = error "differentLengths - arg 1 is too long"
+sumZipWithFusionAcc f (x:xs) (y:ys) acc = sumZipWithFusionAcc f xs ys (acc + f x y)
 
 --bad:	| otherwise = if (sum $ zipWith (\w b -> if b > 0.5 then w else 0.5) ws vs) > 0.5 then 1 else 0
 
@@ -27,11 +40,10 @@ perceptron (ws,bias) vs
 
 
 initPerceptrons :: [[([Weight],Weight)]] -> [Value] -> [Value]
-initPerceptrons ws3d inputs = chainLayers allLayers
-		where 	allLayers = map makeLayer ws3d
-			chainLayers (x:xs) = foldl (flip chainFunc) (zipWith' (\x y -> x [y]) x inputs) xs
-			chainFunc fs ls = [f ls | f <- fs]
-			makeLayer ws2d = map perceptron ws2d
+initPerceptrons ws3d inputs = chainLayers layers
+		where 	layers = map (map perceptron) ws3d
+			chainLayers (x:xs) = foldl (\ls -> map ($ ls)) (zipWith (\x y -> x [y]) x inputs) xs
+			
 			
 randomPerceptronNet :: MonadRandom m => [Int] -> m [[([Weight],Weight)]]
 randomPerceptronNet ls = liftM (reverse . snd) . foldl (>>=) (anotherHelper2 (head ls) (1, [])) $ zipWith ($) (repeat anotherHelper2) (tail ls)
